@@ -1,0 +1,24 @@
+# Render Blueprint: бесплатный веб-сервис SafeDeal (https://render.com)
+# Внимание: на бесплатном тарифе диск временный — база сбрасывается к демо-данным
+# при каждом деплое и после «засыпания» сервиса (15 минут без запросов).
+services:
+  - type: web
+    name: safedeal
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run seed && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NODE_ENV
+        value: production
+      - key: SAFEDEAL_MASTER_KEY
+        generateValue: true      # случайный 256-битный ключ шифрования PII и файлов
+      - key: ADMIN_PASSWORD
+        sync: false              # Render спросит при создании; пусто = случайный (смотрите в логах)
+      - key: KYC_AUTO_APPROVE
+        value: "1"               # демо: верификация одобряется сразу
+      - key: TRUST_PROXY
+        value: "1"               # один прокси Render перед приложением — корректные IP для rate limit

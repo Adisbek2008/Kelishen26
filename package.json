@@ -1,0 +1,31 @@
+{
+  "name": "safedeal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SafeDeal — MVP сервиса безопасных сделок (эскроу)",
+  "scripts": {
+    "dev": "node --disable-warning=ExperimentalWarning scripts/dev.js",
+    "build": "vite build",
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "seed": "node --disable-warning=ExperimentalWarning server/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.6",
+    "vite": "^8.3.8"
+  }
+}
