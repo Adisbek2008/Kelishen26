@@ -51,7 +51,12 @@ export async function copyText(text) {
   return ok;
 }
 
-export const money = (cents) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
+// Amounts are stored in tyiyn (1 som = 100 tyiyn)
+export const money = (cents) => { const c = cents || 0, d = c % 100 ? 2 : 0; return new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }).format(c / 100) + ' som'; };
+// Fee tiers — keep in sync with server/config.js: up to 3,000 som → 3%, above → 1%
+export const FEE_THRESHOLD = 3_000_00;
+export const feeRate = (cents) => (cents <= FEE_THRESHOLD ? 0.03 : 0.01);
+export const feePercent = (cents) => Math.round(feeRate(cents) * 100);
 export const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 export const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 export const fmtDateTime = (iso) => `${fmtDate(iso)}, ${fmtTime(iso)}`;

@@ -7,7 +7,7 @@ import { post, balance } from '../ledger.js';
 import * as psp from '../psp.js';
 import { parse, fail, z, clientIp } from '../http.js';
 import { requireAuth, requireVerified } from '../auth.js';
-import { notify, dealEvent, systemMessage, publicUser, feeSplit, nextDealCode } from '../services.js';
+import { notify, dealEvent, systemMessage, publicUser, feeSplit, nextDealCode, fmtMoney } from '../services.js';
 import { fileView } from './files.js';
 
 export const ACTIVE = ['pending_partner', 'awaiting_payment', 'funds_reserved', 'delivered', 'disputed'];
@@ -149,7 +149,7 @@ r.post('/', (req, res) => {
     description: z.string().trim().max(2000).default(''),
     category: z.enum(['goods', 'service', 'rent']),
     conditions: z.string().trim().max(2000).default(''),
-    amountCents: z.number().int().min(500, 'minimum $5').max(config.maxDealCents),
+    amountCents: z.number().int().min(config.minDealCents, `minimum ${fmtMoney(config.minDealCents)}`).max(config.maxDealCents, `maximum ${fmtMoney(config.maxDealCents)}`),
     myRole: z.enum(['buyer', 'seller']),
     feePayer: z.enum(['buyer', 'seller', 'split']).default('split'),
     deadline: z.iso.date().optional(),
@@ -188,7 +188,7 @@ r.post('/:id/pay', (req, res) => {
       { account: 'escrow:' + d.id, amount: f.buyerPays },
     ], { dealId: d.id, description: `Payment for deal ${d.code} (held)` });
     transition(d, ['awaiting_payment'], 'funds_reserved');
-    dealEvent(d.id, req.user.id, 'paid', `Buyer paid $${(f.buyerPays / 100).toFixed(2)} — funds frozen in escrow`);
+    dealEvent(d.id, req.user.id, 'paid', `Buyer paid ${fmtMoney(f.buyerPays)} — funds frozen in escrow`);
     systemMessage('deal', d.id, '❄️ Funds are frozen in escrow. The seller can now hand over the item or provide the service.');
     notify(d.seller_id, `The buyer paid for deal ${d.code}. Funds are frozen in escrow`, `/deals/${d.id}`);
     audit({ actorId: req.user.id, action: 'deal.pay', entity: 'deal', entityId: d.id, meta: { amount: f.buyerPays, charge: ch.chargeId }, ip: clientIp(req) });

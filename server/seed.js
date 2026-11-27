@@ -51,10 +51,10 @@ function deal({ title, category, amount, buyer, seller, creator, status, feePaye
 }
 
 tx(() => {
-  deal({ title: 'iPhone 15 Pro', category: 'goods', amount: 109900, buyer: alex, seller: olivia, creator: alex, status: 'funds_reserved', conditions: 'Brand new, sealed, courier delivery' });
-  deal({ title: 'Brand identity design', category: 'service', amount: 85000, buyer: olivia, seller: alex, creator: alex, status: 'awaiting_payment', conditions: 'Logo + brand book, 2 rounds of revisions' });
-  deal({ title: 'Website redesign', category: 'service', amount: 240000, buyer: olivia, seller: alex, creator: olivia, status: 'completed' });
-  deal({ title: 'Sony A7 IV camera rental, 3 days', category: 'rent', amount: 17500, buyer: alex, seller: null, creator: alex, status: 'pending_partner' });
+  deal({ title: 'iPhone 15 Pro', category: 'goods', amount: 9_500_000, buyer: alex, seller: olivia, creator: alex, status: 'funds_reserved', conditions: 'Brand new, sealed, courier delivery' });
+  deal({ title: 'Brand identity design', category: 'service', amount: 2_500_000, buyer: olivia, seller: alex, creator: alex, status: 'awaiting_payment', conditions: 'Logo + brand book, 2 rounds of revisions' });
+  deal({ title: 'Website redesign', category: 'service', amount: 6_000_000, buyer: olivia, seller: alex, creator: olivia, status: 'completed' });
+  deal({ title: 'Sony A7 IV camera rental, 3 days', category: 'rent', amount: 250_000, buyer: alex, seller: null, creator: alex, status: 'pending_partner' });
 });
 console.log(`Done. Demo accounts:
   admin@kelishen.local / ${adminPassword}

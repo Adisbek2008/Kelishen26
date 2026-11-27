@@ -182,7 +182,7 @@ export function Wallet() {
       )}
       <Sheet open={open} onClose={() => setOpen(false)} title="Withdraw funds">
         <form onSubmit={withdraw} className="stack">
-          <Field label={`Amount, $ (to card •••• ${user.card?.last4 || '—'})`}><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} required /></Field>
+          <Field label={`Amount, som (to card •••• ${user.card?.last4 || '—'})`}><input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} required /></Field>
           <button className="btn btn-primary" disabled={busy}>Withdraw</button>
         </form>
       </Sheet>

@@ -11,6 +11,16 @@ const { createApp } = await import('../server/app.js');
 const { db } = await import('../server/db.js');
 const { checkInvariants } = await import('../server/ledger.js');
 const { verifyAuditChain } = await import('../server/audit.js');
+const { feeSplit } = await import('../server/services.js');
+
+test('комиссия: до 3000 сом включительно — 3%, свыше — 1%', () => {
+  assert.equal(feeSplit(100_00, 'buyer').fee, 3_00);         // 100 сом → 3 сом
+  assert.equal(feeSplit(3_000_00, 'buyer').fee, 90_00);      // 3000 сом → 90 сом
+  assert.equal(feeSplit(3_000_01, 'buyer').fee, 30_00);      // 3000.01 сом → 1% = 30 сом
+  assert.equal(feeSplit(95_000_00, 'seller').fee, 950_00);   // 95 000 сом → 950 сом
+  const s = feeSplit(2_500_00, 'split');                     // 2500 сом, 3% = 75 сом пополам
+  assert.deepEqual([s.fee, s.buyerPays, s.sellerGets], [75_00, 2_537_50, 2_462_50]);
+});
 
 let server, base;
 before(async () => { server = createApp().listen(0); await new Promise((r) => server.once('listening', r)); base = `http://127.0.0.1:${server.address().port}`; });
@@ -67,11 +77,11 @@ test('полный цикл: создание → приглашение → о�
   const p1 = await buyer.call('POST', `/api/deals/${d.id}/pay`, undefined, { 'idempotency-key': k });
   assert.equal(p1.status, 200);
   assert.equal(p1.data.deal.status, 'funds_reserved');
-  assert.equal(p1.data.deal.escrowCents, 101000); // 1000 + половина комиссии 2% (20)
+  assert.equal(p1.data.deal.escrowCents, 101500); // 1000 сом + половина комиссии 3% (15)
   // повтор того же запроса не списывает деньги второй раз
   const p2 = await buyer.call('POST', `/api/deals/${d.id}/pay`, undefined, { 'idempotency-key': k });
   assert.equal(p2.status, 200);
-  assert.equal(p2.data.deal.escrowCents, 101000);
+  assert.equal(p2.data.deal.escrowCents, 101500);
 
   // покупатель не может отметить доставку, продавец не может подтвердить
   assert.equal((await buyer.call('POST', `/api/deals/${d.id}/deliver`, {})).status, 409);
@@ -81,11 +91,11 @@ test('полный цикл: создание → приглашение → о�
   assert.equal(done.data.status, 'completed');
   assert.equal(done.data.escrowCents, 0);
   const me = await seller.call('GET', '/api/auth/me');
-  assert.equal(me.data.user.balanceCents, 99000);
+  assert.equal(me.data.user.balanceCents, 98500);
   assert.equal((await buyer.call('POST', `/api/deals/${d.id}/review`, { rating: 5, comment: 'ok' })).status, 200);
   assert.equal((await buyer.call('POST', `/api/deals/${d.id}/review`, { rating: 1 })).status, 409);
   // вывод
-  const w = await seller.call('POST', '/api/wallet/withdraw', { amountCents: 99000 }, { 'idempotency-key': key() });
+  const w = await seller.call('POST', '/api/wallet/withdraw', { amountCents: 98500 }, { 'idempotency-key': key() });
   assert.equal(w.data.user.balanceCents, 0);
   assert.equal((await seller.call('POST', '/api/wallet/withdraw', { amountCents: 1 }, { 'idempotency-key': key() })).status, 400);
 });
@@ -107,7 +117,7 @@ test('спор и решение администратора с разделе�
   assert.equal(r.status, 200, JSON.stringify(r.data));
   const after = (await buyer.call('GET', `/api/deals/${d.id}`)).data;
   assert.equal(after.status, 'resolved');
-  assert.equal(after.resolution.buyerCents + after.resolution.sellerCents, 51000);
+  assert.equal(after.resolution.buyerCents + after.resolution.sellerCents, 51500);
   const ov = (await admin.call('GET', '/api/admin/overview')).data;
   assert.ok(ov.ledger.ok, 'ledger invariants');
   assert.ok(ov.audit.ok, 'audit chain');

@@ -26,9 +26,15 @@ export function publicUser(u) {
   return { id: u.id, name: u.name, verified: u.kyc_status === 'verified', memberSince: u.created_at, ...userStats(u.id) };
 }
 
-/** Комиссия: 2% (мин. $1), делится согласно fee_payer. Возвращает суммы в центах. */
+/** Ставка комиссии: до 3000 сом включительно — 3%, свыше — 1% от всей суммы. */
+export const feeRate = (amountCents) => (amountCents <= config.feeThresholdCents ? config.feeRateLow : config.feeRateHigh);
+
+/** Сумма в сомах для текстов: 95,000 som / 1,425.50 som */
+export const fmtMoney = (cents) => { const d = cents % 100 ? 2 : 0; return new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }).format(cents / 100) + ' som'; };
+
+/** Комиссия по ставке feeRate, делится согласно fee_payer. Возвращает суммы в тыйынах. */
 export function feeSplit(amountCents, feePayer) {
-  const fee = Math.max(config.minFeeCents, Math.round(amountCents * config.feeRate));
+  const fee = Math.round(amountCents * feeRate(amountCents));
   const buyerFee = feePayer === 'buyer' ? fee : feePayer === 'split' ? Math.ceil(fee / 2) : 0;
   const sellerFee = fee - buyerFee;
   return { fee, buyerFee, sellerFee, buyerPays: amountCents + buyerFee, sellerGets: amountCents - sellerFee };

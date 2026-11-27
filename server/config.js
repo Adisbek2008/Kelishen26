@@ -35,10 +35,12 @@ export const config = {
   publicUrl: process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 3000}`,
   dbFile: process.env.DB_FILE || path.join(DATA_DIR, 'safedeal.db'),
   masterKey: loadMasterKey(),
-  currency: 'USD',
-  feeRate: 0.02,                  // комиссия платформы 2%
-  minFeeCents: 100,               // но не меньше $1
-  maxDealCents: 5_000_000_00,     // лимит сделки $5M
+  currency: 'KGS',               // суммы хранятся в тыйынах (1 сом = 100 тыйын)
+  feeThresholdCents: 3_000_00,    // сделки до 3000 сом включительно…
+  feeRateLow: 0.03,               // …комиссия 3%
+  feeRateHigh: 0.01,              // свыше 3000 сом — 1%
+  minDealCents: 100_00,           // минимальная сделка 100 сом
+  maxDealCents: 10_000_000_00,    // лимит сделки 10 млн сом
   sessionTtlMs: 7 * 24 * 3600e3,  // абсолютное время жизни сессии
   sessionIdleMs: 12 * 3600e3,     // таймаут бездействия
   maxLoginFailures: 5,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { api, money, fmtDate, fmtDateTime, uploadFile, copyText } from '../api.js';
+import { api, money, fmtDate, fmtDateTime, uploadFile, copyText, feePercent } from '../api.js';
 import { useAuth } from '../App.jsx';
 import { Icon, TopBar, StatusChip, Avatar, Rating, Sheet, Stars, Field, Segmented, useLoad, Spinner, Empty, useToast, CATEGORY, ROLE } from '../ui.jsx';
 import Chat from '../components/Chat.jsx';
@@ -164,7 +164,7 @@ export default function DealPage() {
 
       <div className="card list mt12">
         <div className="list-row"><span className="muted">Amount</span><b>{money(d.amountCents)}</b></div>
-        <div className="list-row"><span className="muted">2% fee ({d.feePayer === 'split' ? 'split 50/50' : d.feePayer === 'buyer' ? 'paid by buyer' : 'paid by seller'})</span><b>{money(d.fee)}</b></div>
+        <div className="list-row"><span className="muted">{feePercent(d.amountCents)}% fee ({d.feePayer === 'split' ? 'split 50/50' : d.feePayer === 'buyer' ? 'paid by buyer' : 'paid by seller'})</span><b>{money(d.fee)}</b></div>
         <div className="list-row"><span className="muted">Buyer pays</span><b>{money(d.buyerPays)}</b></div>
         <div className="list-row"><span className="muted">Seller receives</span><b>{money(d.sellerGets)}</b></div>
         {d.deadline && <div className="list-row"><span className="muted">Deadline</span><b>{fmtDate(d.deadline)}</b></div>}
