@@ -24,7 +24,7 @@ function Private({ children, admin }) {
   return children;
 }
 
-// Для гостевых страниц: если пользователь уже вошёл — ведём на ?next (только относительный путь), иначе на главную
+// Guest pages: if already signed in, go to ?next (relative paths only), otherwise home
 function Guest({ children, fallback = '/' }) {
   const { user } = useAuth();
   const [sp] = useSearchParams();

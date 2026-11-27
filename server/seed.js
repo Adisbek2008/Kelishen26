@@ -8,7 +8,7 @@ import { feeSplit, nextDealCode, dealEvent, systemMessage } from './services.js'
 import { audit } from './audit.js';
 
 if (db.prepare('SELECT COUNT(*) AS n FROM users').get().n > 0) {
-  console.log('База уже содержит данные — пропускаю seed. Удалите папку data/ для пересоздания.');
+  console.log('Database already has data — skipping seed. Delete the data/ folder to recreate it.');
   process.exit(0);
 }
 
@@ -25,9 +25,9 @@ async function user(name, email, password, role = 'user', last4 = '4589') {
 
 // В production пароль админа не может быть известным: берём из ADMIN_PASSWORD или генерируем случайный
 const adminPassword = process.env.ADMIN_PASSWORD || (config.isProd ? randomToken(12) + '9a' : 'Admin12345!');
-const admin = await user('Администратор', 'admin@safedeal.local', adminPassword, 'admin', '0001');
-const alex = await user('Alex Morgan', 'alex@safedeal.local', 'Demo12345!', 'user', '4589');
-const olivia = await user('Olivia Reed', 'olivia@safedeal.local', 'Demo12345!', 'user', '7712');
+const admin = await user('Kelishen Admin', 'admin@kelishen.local', adminPassword, 'admin', '0001');
+const alex = await user('Alex Morgan', 'alex@kelishen.local', 'Demo12345!', 'user', '4589');
+const olivia = await user('Olivia Reed', 'olivia@kelishen.local', 'Demo12345!', 'user', '7712');
 
 function deal({ title, category, amount, buyer, seller, creator, status, feePayer = 'split', conditions = '' }) {
   const id = uuid();
@@ -36,27 +36,27 @@ function deal({ title, category, amount, buyer, seller, creator, status, feePaye
               status, invite_token, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(id, nextDealCode(), title, '', category, conditions, amount, f.fee, feePayer, creator, buyer, seller, status,
       status === 'pending_partner' ? randomToken(24) : null, now(), now());
-  dealEvent(id, creator, 'created', 'Сделка создана');
+  dealEvent(id, creator, 'created', 'Deal created');
   if (['funds_reserved', 'completed', 'disputed'].includes(status)) {
-    post('hold', [{ account: 'card:' + buyer, amount: -f.buyerPays, userId: buyer }, { account: 'escrow:' + id, amount: f.buyerPays }], { dealId: id, description: 'Оплата сделки (резерв)' });
-    dealEvent(id, buyer, 'paid', 'Средства зарезервированы');
+    post('hold', [{ account: 'card:' + buyer, amount: -f.buyerPays, userId: buyer }, { account: 'escrow:' + id, amount: f.buyerPays }], { dealId: id, description: 'Deal payment (held)' });
+    dealEvent(id, buyer, 'paid', 'Funds frozen in escrow');
   }
   if (status === 'completed') {
-    post('release', [{ account: 'escrow:' + id, amount: -f.buyerPays }, { account: 'user:' + seller, amount: f.sellerGets, userId: seller }, { account: 'platform:fees', amount: f.fee }], { dealId: id, description: 'Выплата по сделке' });
-    dealEvent(id, buyer, 'released', 'Покупатель подтвердил выполнение. Средства перечислены продавцу');
-    db.prepare('INSERT INTO reviews (deal_id, author_id, target_id, rating, comment, created_at) VALUES (?,?,?,?,?,?)').run(id, buyer, seller, 5, 'Всё отлично, быстро и честно!', now());
+    post('release', [{ account: 'escrow:' + id, amount: -f.buyerPays }, { account: 'user:' + seller, amount: f.sellerGets, userId: seller }, { account: 'platform:fees', amount: f.fee }], { dealId: id, description: 'Deal payout' });
+    dealEvent(id, buyer, 'released', 'Buyer confirmed the deal. Funds released to the seller');
+    db.prepare('INSERT INTO reviews (deal_id, author_id, target_id, rating, comment, created_at) VALUES (?,?,?,?,?,?)').run(id, buyer, seller, 5, 'Everything was great — fast and honest!', now());
   }
-  systemMessage('deal', id, 'Сделка создана.');
+  systemMessage('deal', id, 'Deal created.');
   return id;
 }
 
 tx(() => {
-  deal({ title: 'iPhone 15 Pro', category: 'goods', amount: 109900, buyer: alex, seller: olivia, creator: alex, status: 'funds_reserved', conditions: 'Новый, запечатанный, доставка курьером' });
-  deal({ title: 'Дизайн фирменного стиля', category: 'service', amount: 85000, buyer: olivia, seller: alex, creator: alex, status: 'awaiting_payment', conditions: 'Логотип + брендбук, 2 итерации правок' });
-  deal({ title: 'Редизайн сайта', category: 'service', amount: 240000, buyer: olivia, seller: alex, creator: olivia, status: 'completed' });
-  deal({ title: 'Аренда камеры Sony A7 IV на 3 дня', category: 'rent', amount: 17500, buyer: alex, seller: null, creator: alex, status: 'pending_partner' });
+  deal({ title: 'iPhone 15 Pro', category: 'goods', amount: 109900, buyer: alex, seller: olivia, creator: alex, status: 'funds_reserved', conditions: 'Brand new, sealed, courier delivery' });
+  deal({ title: 'Brand identity design', category: 'service', amount: 85000, buyer: olivia, seller: alex, creator: alex, status: 'awaiting_payment', conditions: 'Logo + brand book, 2 rounds of revisions' });
+  deal({ title: 'Website redesign', category: 'service', amount: 240000, buyer: olivia, seller: alex, creator: olivia, status: 'completed' });
+  deal({ title: 'Sony A7 IV camera rental, 3 days', category: 'rent', amount: 17500, buyer: alex, seller: null, creator: alex, status: 'pending_partner' });
 });
-console.log(`Готово. Демо-аккаунты:
-  admin@safedeal.local / ${adminPassword}
-  alex@safedeal.local  / Demo12345!
-  olivia@safedeal.local / Demo12345!`);
+console.log(`Done. Demo accounts:
+  admin@kelishen.local / ${adminPassword}
+  alex@kelishen.local  / Demo12345!
+  olivia@kelishen.local / Demo12345!`);

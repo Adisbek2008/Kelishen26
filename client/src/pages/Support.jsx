@@ -20,18 +20,18 @@ export default function Support() {
   return (
     <>
       <div className="page with-tabs support-page">
-        <TopBar back={false} title={<span className="row gap8"><span className="agent-avatar">С<i /></span><span className="col"><b>Поддержка SafeDeal 24/7</b><span className="small"><span className="green">● Онлайн</span> <span className="muted">· отвечаем за минуту</span></span></span></span>} />
-        <p className="muted small mt12">Немного помощи — и полное спокойствие.</p>
+        <TopBar back={false} title={<span className="row gap8"><span className="agent-avatar">S<i /></span><span className="col"><b>Kelishen Support 24/7</b><span className="small"><span className="green">● Online</span> <span className="muted">· replies within a minute</span></span></span></span>} />
+        <p className="muted small mt12">A little help goes a long way.</p>
         <div className="presets">
-          <button onClick={openDispute} className="on">Открыть спор</button>
-          <button onClick={() => ask('Вопрос по верификации личности')}>Верификация</button>
-          <button onClick={() => ask('Вопрос по оплате')}>Вопрос по оплате</button>
+          <button onClick={openDispute} className="on">Open a dispute</button>
+          <button onClick={() => ask('I have a question about identity verification')}>Verification</button>
+          <button onClick={() => ask('I have a question about a payment')}>Payment question</button>
         </div>
         <Chat key={key} path="/support/messages" purpose="support" meId={user.id} />
       </div>
       <TabBar />
-      <Sheet open={!!pick} onClose={() => setPick(null)} title="По какой сделке спор?">
-        {pick?.length === 0 ? <Empty title="Нет оплаченных сделок" text="Спор можно открыть только по сделке с зарезервированными средствами" /> :
+      <Sheet open={!!pick} onClose={() => setPick(null)} title="Which deal is the dispute about?">
+        {pick?.length === 0 ? <Empty title="No paid deals" text="A dispute can only be opened for a deal with frozen funds" /> :
           <div className="stack">{pick?.map((d) => (
             <button key={d.id} className="card pick-card" onClick={() => nav(`/deals/${d.id}?dispute=1`)}>
               <div className="row between"><b>{d.title}</b><b>{money(d.amountCents)}</b></div>

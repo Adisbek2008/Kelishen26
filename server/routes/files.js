@@ -33,18 +33,18 @@ const r = Router();
 
 r.post('/', requireAuth, express.raw({ type: 'application/octet-stream', limit: config.maxUploadBytes }), (req, res) => {
   const buf = req.body;
-  if (!Buffer.isBuffer(buf) || buf.length === 0) fail(400, 'Пустой файл');
+  if (!Buffer.isBuffer(buf) || buf.length === 0) fail(400, 'Empty file');
   const purpose = String(req.get('x-purpose') || '');
-  if (!['kyc', 'deal', 'support'].includes(purpose)) fail(400, 'Неверное назначение файла');
+  if (!['kyc', 'deal', 'support'].includes(purpose)) fail(400, 'Invalid file purpose');
   const sig = SIGNATURES.find((s) => s.test(buf));
-  if (!sig) fail(415, 'Разрешены только PDF, PNG, JPEG, WEBP');
-  if (purpose === 'kyc' && sig.mime === 'application/pdf') fail(415, 'Для паспорта нужно фото (JPG/PNG)');
+  if (!sig) fail(415, 'Only PDF, PNG, JPEG and WEBP files are allowed');
+  if (purpose === 'kyc' && sig.mime === 'application/pdf') fail(415, 'Passport must be a photo (JPG/PNG)');
 
   let dealId = null;
   if (purpose === 'deal') {
     dealId = String(req.get('x-deal-id') || '');
     const d = db.prepare('SELECT buyer_id, seller_id FROM deals WHERE id = ?').get(dealId);
-    if (!d || (d.buyer_id !== req.user.id && d.seller_id !== req.user.id)) fail(404, 'Сделка не найдена');
+    if (!d || (d.buyer_id !== req.user.id && d.seller_id !== req.user.id)) fail(404, 'Deal not found');
   }
   let name = 'file';
   try { name = decodeURIComponent(String(req.get('x-file-name') || 'file')); } catch { /* ignore */ }
@@ -62,12 +62,12 @@ r.post('/', requireAuth, express.raw({ type: 'application/octet-stream', limit: 
 
 r.get('/:id', requireAuth, (req, res) => {
   const f = db.prepare('SELECT * FROM files WHERE id = ?').get(String(req.params.id));
-  if (!f || !canReadFile(req.user, f)) fail(404, 'Файл не найден');
+  if (!f || !canReadFile(req.user, f)) fail(404, 'File not found');
   if (f.purpose === 'kyc' && req.user.id !== f.owner_id) {
     audit({ actorId: req.user.id, action: 'pii.kyc_file_viewed', entity: 'file', entityId: f.id, ip: clientIp(req) });
   }
   const data = decryptFile(fs.readFileSync(path.join(UPLOAD_DIR, f.stored_name)));
-  if (sha256(data) !== f.sha256) fail(500, 'Нарушена целостность файла');
+  if (sha256(data) !== f.sha256) fail(500, 'File integrity check failed');
   const inline = req.query.inline === '1' && f.mime.startsWith('image/');
   res.set({
     'Content-Type': f.mime,

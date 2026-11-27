@@ -70,7 +70,7 @@ export function csrfProtect(req, res, next) {
     const host = req.get('host');
     let ok = false;
     try { ok = new URL(origin).host === host || origin === config.publicUrl; } catch { ok = false; }
-    if (!ok) return next(fail(403, 'Недопустимый Origin', 'bad_origin'));
+    if (!ok) return next(fail(403, 'Origin not allowed', 'bad_origin'));
   }
   if (req.get('x-requested-with') !== 'SafeDeal') return next(fail(403, 'CSRF check failed', 'csrf'));
   if (req.user && !safeEqual(req.get('x-csrf-token'), req.csrfToken)) return next(fail(403, 'CSRF token invalid', 'csrf'));
@@ -78,14 +78,14 @@ export function csrfProtect(req, res, next) {
 }
 
 export function requireAuth(req, res, next) {
-  if (!req.user) return next(fail(401, 'Требуется вход', 'unauthenticated'));
+  if (!req.user) return next(fail(401, 'Sign-in required', 'unauthenticated'));
   next();
 }
 export function requireAdmin(req, res, next) {
-  if (!req.user) return next(fail(401, 'Требуется вход', 'unauthenticated'));
-  if (req.user.role !== 'admin') return next(fail(403, 'Недостаточно прав', 'forbidden'));
+  if (!req.user) return next(fail(401, 'Sign-in required', 'unauthenticated'));
+  if (req.user.role !== 'admin') return next(fail(403, 'Insufficient permissions', 'forbidden'));
   next();
 }
 export function requireVerified(req) {
-  if (req.user.kyc_status !== 'verified') fail(403, 'Сначала пройдите верификацию личности', 'kyc_required');
+  if (req.user.kyc_status !== 'verified') fail(403, 'Please verify your identity first', 'kyc_required');
 }

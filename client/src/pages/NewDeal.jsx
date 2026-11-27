@@ -32,27 +32,27 @@ export default function NewDeal() {
 
   return (
     <div className="page">
-      <TopBar title="Новая сделка" />
+      <TopBar title="New deal" />
       <form onSubmit={submit} className="stack mt16">
-        <Field label="Ваша роль"><Segmented value={f.myRole} onChange={set('myRole')} options={[['buyer', 'Я покупатель'], ['seller', 'Я продавец']]} /></Field>
-        <Field label="Что продаётся"><input className="input" placeholder="Например, iPhone 15 Pro" value={f.title} onChange={set('title')} required minLength={3} maxLength={120} /></Field>
-        <Field label="Тип сделки"><Segmented value={f.category} onChange={set('category')} options={[['goods', 'Товар'], ['service', 'Услуга'], ['rent', 'Аренда']]} /></Field>
-        <Field label="Сумма, $"><input className="input amount-input" inputMode="decimal" placeholder="0.00" value={f.amount} onChange={(e) => set('amount')(e.target.value.replace(/[^\d.,]/g, ''))} required /></Field>
-        <Field label="Описание"><textarea className="input" rows={3} placeholder="Модель, состояние, комплектация…" value={f.description} onChange={set('description')} maxLength={2000} /></Field>
-        <Field label="Условия выполнения" hint="Что должно произойти, чтобы покупатель подтвердил сделку"><textarea className="input" rows={3} placeholder="Например: доставка курьером до 30 ноября, проверка при получении" value={f.conditions} onChange={set('conditions')} maxLength={2000} /></Field>
-        <Field label="Срок выполнения"><input className="input" type="date" value={f.deadline} onChange={set('deadline')} min={new Date().toISOString().slice(0, 10)} /></Field>
-        <Field label="Кто оплачивает комиссию 2%"><Segmented value={f.feePayer} onChange={set('feePayer')} options={[['buyer', 'Покупатель'], ['split', 'Пополам'], ['seller', 'Продавец']]} /></Field>
+        <Field label="Your role"><Segmented value={f.myRole} onChange={set('myRole')} options={[['buyer', 'I\'m buying'], ['seller', 'I\'m selling']]} /></Field>
+        <Field label="What is being sold"><input className="input" placeholder="e.g. iPhone 15 Pro" value={f.title} onChange={set('title')} required minLength={3} maxLength={120} /></Field>
+        <Field label="Deal type"><Segmented value={f.category} onChange={set('category')} options={[['goods', 'Goods'], ['service', 'Service'], ['rent', 'Rental']]} /></Field>
+        <Field label="Amount, $"><input className="input amount-input" inputMode="decimal" placeholder="0.00" value={f.amount} onChange={(e) => set('amount')(e.target.value.replace(/[^\d.,]/g, ''))} required /></Field>
+        <Field label="Description"><textarea className="input" rows={3} placeholder="Model, condition, what's included…" value={f.description} onChange={set('description')} maxLength={2000} /></Field>
+        <Field label="Completion conditions" hint="What must happen for the buyer to confirm the deal"><textarea className="input" rows={3} placeholder="e.g. courier delivery by Nov 30, inspection on receipt" value={f.conditions} onChange={set('conditions')} maxLength={2000} /></Field>
+        <Field label="Deadline"><input className="input" type="date" value={f.deadline} onChange={set('deadline')} min={new Date().toISOString().slice(0, 10)} /></Field>
+        <Field label="Who pays the 2% fee"><Segmented value={f.feePayer} onChange={set('feePayer')} options={[['buyer', 'Buyer'], ['split', 'Split 50/50'], ['seller', 'Seller']]} /></Field>
 
         {cents > 0 && (
           <div className="card list">
-            <div className="list-row"><span className="muted">Комиссия сервиса</span><b>{money(p.fee)}</b></div>
-            <div className="list-row"><span className="muted">Покупатель платит</span><b>{money(p.buyerPays)}</b></div>
-            <div className="list-row"><span className="muted">Продавец получит</span><b className="green">{money(p.sellerGets)}</b></div>
+            <div className="list-row"><span className="muted">Service fee</span><b>{money(p.fee)}</b></div>
+            <div className="list-row"><span className="muted">Buyer pays</span><b>{money(p.buyerPays)}</b></div>
+            <div className="list-row"><span className="muted">Seller receives</span><b className="green">{money(p.sellerGets)}</b></div>
           </div>
         )}
         {err && <div className="alert alert-red">{err}</div>}
-        <button className="btn btn-primary" disabled={busy}>{busy ? 'Создание…' : 'Создать и получить ссылку'}</button>
-        <p className="secure-line"><Icon name="shieldCheck" size={14} /> Деньги будут зарезервированы и не уйдут продавцу до подтверждения</p>
+        <button className="btn btn-primary" disabled={busy}>{busy ? 'Creating…' : 'Create and get link'}</button>
+        <p className="secure-line"><Icon name="snow" size={14} /> The payment will be frozen and won't reach the seller until confirmation</p>
       </form>
     </div>
   );

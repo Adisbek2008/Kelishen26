@@ -2,7 +2,7 @@ import { useEffect, useState, createContext, useContext, useCallback } from 'rea
 import { NavLink, useNavigate, Link } from 'react-router-dom';
 import { money } from './api.js';
 
-// ---------- Иконки (stroke 1.8, 24x24) ----------
+// ---------- Icons (stroke 1.8, 24x24, rounded caps — Kelishen icon style) ----------
 const P = {
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   history: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2',
@@ -38,6 +38,8 @@ const P = {
   x: 'M6 6l12 12M18 6 6 18',
   gavel: 'm14 5 5 5M11 8l5 5M9 10l5-5 5 5-5 5zM3 21l7-7',
   eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  // Snowflake = funds temporarily frozen in escrow (brand book: not a decoration)
+  snow: 'M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9.5 3.6 12 5.2l2.5-1.6M9.5 20.4 12 18.8l2.5 1.6M4 10.4l2.6-1.2-.2-2.9M20 13.6l-2.6 1.2.2 2.9M4 13.6l2.6 1.2-.2 2.9M20 10.4l-2.6-1.2.2-2.9',
 };
 export function Icon({ name, size = 20, className = '', fill = 'none', ...rest }) {
   return (
@@ -48,20 +50,36 @@ export function Icon({ name, size = 20, className = '', fill = 'none', ...rest }
   );
 }
 
-// ---------- Статусы сделки ----------
+// ---------- Brand ----------
+/** Kelishen logo mark: two people (buyer + seller) forming a shield around a coin. */
+export function LogoMark({ size = 48, mono, className = '' }) {
+  const a = mono ? 'currentColor' : '#6DBBFA', b = mono ? 'currentColor' : '#2183F5', coin = mono ? 'currentColor' : '#2183F5';
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" className={'logo-mark ' + className} aria-hidden="true">
+      <circle cx="29" cy="15" r="10" fill={a} /><circle cx="71" cy="15" r="10" fill={b} />
+      <path d="M44 29c0 6-4 9-10 12-6 4-4 11-3 19 1 10 9 18 14 24 3 4 3 12-1 12C22 92 6 70 6 50c0-10 6-14 14-16l20-5c2-.5 4-1 4 0z" fill={a} opacity={mono ? 0.7 : 1} />
+      <path d="M56 29c0 6 4 9 10 12 6 4 4 11 3 19-1 10-9 18-14 24-3 4-3 12 1 12 22-4 38-26 38-46 0-10-6-14-14-16l-20-5c-2-.5-4-1-4 0z" fill={b} />
+      <circle cx="50" cy="58" r="13" fill={coin} />
+      <path d="M54.5 52.5c-1-1.4-2.6-2-4.5-2-2.6 0-4.4 1.3-4.4 3.3 0 4.6 9 2.6 9 7.4 0 2.1-2 3.4-4.6 3.4-2 0-3.8-.8-4.8-2.3M50 47.5v3M50 64.6v3" stroke={mono ? 'var(--bg)' : '#fff'} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+export const Wordmark = ({ className = '' }) => <span className={'wordmark ' + className}>Kelishen</span>;
+
+// ---------- Deal statuses ----------
 export const STATUS = {
-  pending_partner: { label: 'Ожидает участника', tone: 'gray', icon: 'clock' },
-  awaiting_payment: { label: 'Ожидает оплаты', tone: 'orange', icon: 'clock' },
-  funds_reserved: { label: 'Средства зарезервированы', tone: 'blue', icon: 'lock' },
-  delivered: { label: 'Ожидает подтверждения', tone: 'orange', icon: 'clock' },
-  disputed: { label: 'Открыт спор', tone: 'red', icon: 'alert' },
-  completed: { label: 'Завершена · Средства переведены', tone: 'green', icon: 'check' },
-  resolved: { label: 'Спор решён', tone: 'gray', icon: 'gavel' },
-  refunded: { label: 'Возврат', tone: 'red', icon: 'refund' },
-  cancelled: { label: 'Отменена', tone: 'gray', icon: 'x' },
+  pending_partner: { label: 'Waiting for partner', tone: 'gray', icon: 'clock' },
+  awaiting_payment: { label: 'Awaiting payment', tone: 'orange', icon: 'clock' },
+  funds_reserved: { label: 'Funds frozen in escrow', tone: 'blue', icon: 'snow' },
+  delivered: { label: 'Awaiting confirmation', tone: 'orange', icon: 'clock' },
+  disputed: { label: 'Dispute open · Funds frozen', tone: 'red', icon: 'snow' },
+  completed: { label: 'Completed · Funds released', tone: 'green', icon: 'check' },
+  resolved: { label: 'Dispute resolved', tone: 'gray', icon: 'gavel' },
+  refunded: { label: 'Refunded', tone: 'red', icon: 'refund' },
+  cancelled: { label: 'Cancelled', tone: 'gray', icon: 'x' },
 };
-export const CATEGORY = { goods: 'Товар', service: 'Услуга', rent: 'Аренда' };
-export const ROLE = { buyer: 'Покупатель', seller: 'Продавец' };
+export const CATEGORY = { goods: 'Goods', service: 'Service', rent: 'Rental' };
+export const ROLE = { buyer: 'Buyer', seller: 'Seller' };
 
 export function StatusChip({ status }) {
   const s = STATUS[status] || { label: status, tone: 'gray', icon: 'clock' };
@@ -69,11 +87,12 @@ export function StatusChip({ status }) {
 }
 
 export function Rating({ rating, count, compact }) {
-  if (rating == null) return <span className="muted small">нет отзывов</span>;
+  if (rating == null) return <span className="muted small">no reviews yet</span>;
   return <span className="rating"><Icon name="star" size={13} fill="currentColor" /> <b>{rating.toFixed(1)}</b>{count != null && <span className="muted"> ({count})</span>}{compact ? null : ''}</span>;
 }
 
-const COLORS = ['#1A8CFF', '#7C5CFF', '#FF8A3D', '#14B87A', '#E5484D', '#0EA5A4', '#D946EF'];
+// Avatar colors derived from the Kelishen palette (blues + rare orange accent)
+const COLORS = ['#2183F5', '#1468D0', '#3E9BF7', '#0F5BB5', '#4A8FE0', '#F15A24', '#2E6FBF'];
 export function Avatar({ name = '?', size = 40 }) {
   const initials = name.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
   const color = COLORS[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORS.length];
@@ -93,7 +112,7 @@ export function DealCard({ deal }) {
       </div>
       <div className="mt12"><StatusChip status={deal.status} /></div>
       <div className="row between mt12 small">
-        <span className="muted">{deal.counterparty ? `с ${deal.counterparty.name}` : 'ожидает второго участника'}</span>
+        <span className="muted">{deal.counterparty ? `with ${deal.counterparty.name}` : 'waiting for the other party'}</span>
         {deal.counterparty && <Rating rating={deal.counterparty.rating} count={deal.counterparty.reviews} />}
       </div>
     </Link>
@@ -104,7 +123,7 @@ export function TopBar({ title, back = true, right, sub }) {
   const nav = useNavigate();
   return (
     <header className="topbar">
-      {back ? <button className="icon-btn" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))} aria-label="Назад"><Icon name="back" /></button> : <span style={{ width: 36 }} />}
+      {back ? <button className="icon-btn" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))} aria-label="Back"><Icon name="back" /></button> : <span style={{ width: 36 }} />}
       <div className="topbar-title"><b>{title}</b>{sub && <span className="muted small">{sub}</span>}</div>
       {right || <span style={{ width: 36 }} />}
     </header>
@@ -112,7 +131,7 @@ export function TopBar({ title, back = true, right, sub }) {
 }
 
 export function TabBar() {
-  const items = [['/', 'home', 'Главная'], ['/history', 'history', 'История'], ['/support', 'support', 'Поддержка'], ['/profile', 'user', 'Профиль']];
+  const items = [['/', 'home', 'Home'], ['/history', 'history', 'History'], ['/support', 'support', 'Support'], ['/profile', 'user', 'Profile']];
   return (
     <nav className="tabbar">
       {items.map(([to, icon, label]) => (
@@ -156,7 +175,7 @@ export function Sheet({ open, onClose, title, children }) {
   return (
     <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="row between mb12"><b className="h3">{title}</b><button className="icon-btn" onClick={onClose} aria-label="Закрыть"><Icon name="x" /></button></div>
+        <div className="row between mb12"><b className="h3">{title}</b><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="x" /></button></div>
         {children}
       </div>
     </div>
@@ -167,7 +186,7 @@ export function Stars({ value, onChange }) {
   return (
     <div className="stars">
       {[1, 2, 3, 4, 5].map((n) => (
-        <button type="button" key={n} onClick={() => onChange(n)} aria-label={`${n} звёзд`} className={n <= value ? 'on' : ''}>
+        <button type="button" key={n} onClick={() => onChange(n)} aria-label={`${n} star${n > 1 ? 's' : ''}`} className={n <= value ? 'on' : ''}>
           <Icon name="star" size={30} fill="currentColor" />
         </button>
       ))}
@@ -179,7 +198,7 @@ export function Empty({ icon = 'shield', title, text, children }) {
   return <div className="empty"><span className="empty-icon"><Icon name={icon} size={28} /></span><b>{title}</b>{text && <p className="muted">{text}</p>}{children}</div>;
 }
 
-export const Spinner = () => <div className="spinner" aria-label="Загрузка" />;
+export const Spinner = () => <div className="spinner" aria-label="Loading" />;
 
 // ---------- Toast ----------
 const ToastCtx = createContext(() => {});
@@ -191,7 +210,7 @@ export function ToastProvider({ children }) {
   return <ToastCtx.Provider value={show}>{children}{t && <div className={`toast toast-${t.tone}`} role="status">{t.text}</div>}</ToastCtx.Provider>;
 }
 
-/** Хук загрузки данных с повторным запросом */
+/** Data-loading hook with reload */
 export function useLoad(fn, deps = []) {
   const [state, setState] = useState({ data: null, error: null, loading: true });
   const load = useCallback(() => fn().then((data) => setState({ data, error: null, loading: false }), (error) => setState({ data: null, error, loading: false })), deps); // eslint-disable-line

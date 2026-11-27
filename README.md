@@ -1,79 +1,76 @@
-# SafeDeal — MVP сервиса безопасных сделок
+# Kelishen — trust in every deal
 
-Покупатель оплачивает сделку, деньги резервируются на платформе (эскроу) и переводятся продавцу
-только после подтверждения. При проблеме любая сторона открывает спор, администрация решает,
-кому достанутся деньги: продавцу, покупателю или обоим в заданной пропорции.
+Kelishen is an MVP of a safe-deal (escrow) service between buyers and sellers. The buyer pays, the money is
+frozen on the platform, and it is released to the seller only after the buyer confirms receipt. If something
+goes wrong, either party can open a dispute, and the Kelishen team decides who gets the money: the seller,
+the buyer, or both in a set proportion.
 
-Архитектура, технологии и меры безопасности описаны в [ARCHITECTURE.md](ARCHITECTURE.md).
+Architecture, technology and security measures are described in [ARCHITECTURE.md](ARCHITECTURE.md) (in Russian).
 
-## Запуск
+## Running locally
 
-Нужен Node.js ≥ 22.5 (используется встроенный SQLite).
+Requires Node.js ≥ 22.5 (uses the built-in SQLite).
 
 ```bash
 npm install
-```
-
-```bash
 npm run build
-```
-
-```bash
 npm run seed
-```
-
-```bash
 npm start
 ```
 
-Откройте http://localhost:3000 (интерфейс рассчитан на мобильный экран, на десктопе показывается
-по центру).
+Open http://localhost:3000. The UI is designed for a phone screen; on desktop it is shown centered.
 
-Режим разработки с hot reload (API на :3000, Vite на :5173):
+Development mode with hot reload (API on :3000, Vite on :5173):
 
 ```bash
 npm run dev
 ```
 
-Тесты:
+Tests:
 
 ```bash
 npm test
 ```
 
-## Демо-аккаунты (после `npm run seed`)
+## Demo accounts (after `npm run seed`)
 
-| Роль | Email | Пароль |
+| Role | Email | Password |
 |---|---|---|
-| Пользователь | alex@safedeal.local | Demo12345! |
-| Пользователь | olivia@safedeal.local | Demo12345! |
-| Администратор | admin@safedeal.local | Admin12345! (только локально; в production — из `ADMIN_PASSWORD` или случайный, выводится при `npm run seed`) |
+| User | alex@kelishen.local | Demo12345! |
+| User | olivia@kelishen.local | Demo12345! |
+| Admin | admin@kelishen.local | Admin12345! (local only; in production it comes from `ADMIN_PASSWORD` or is random and printed by `npm run seed`) |
 
-Тестовые карты: `4242 4242 4242 4242` проходит, `4000 0000 0000 0002` всегда отклоняется.
-Срок — любой будущий, CVV — любые 3 цифры.
+Test cards: `4242 4242 4242 4242` succeeds, `4000 0000 0000 0002` is always declined.
+Any future expiry date and any 3-digit CVV.
 
-## Демо-сценарий
+## Demo walkthrough
 
-1. Войдите как **alex**, нажмите «Создать безопасную сделку», выберите «Я продавец» и скопируйте ссылку-приглашение.
-2. В другом браузере (или в режиме инкогнито) откройте ссылку, войдите как **olivia** и примите приглашение.
-3. Olivia оплачивает сделку: статус «Средства зарезервированы».
-4. Alex нажимает «Я выполнил условия», Olivia — «Подтвердить получение». Деньги на балансе Alex, его можно вывести на карту.
-5. Сценарий спора: после оплаты нажмите «Открыть спор», приложите фото или PDF. Войдите как **admin**,
-   откройте «Профиль → Панель администратора → Споры» и вынесите решение.
-6. Новый пользователь после регистрации проходит верификацию: ФИО, паспорт, фото, карта.
-   В dev-режиме заявка одобряется автоматически. Чтобы проверять заявки вручную в админке,
-   запустите сервер с `KYC_AUTO_APPROVE=0`.
+1. Sign in as **alex**, tap "Create a safe deal", choose "I'm selling" and copy the invite link.
+2. In another browser (or an incognito window) open the link, sign in as **olivia** and accept the invite.
+3. Olivia pays for the deal: the status becomes "Funds frozen in escrow".
+4. Alex taps "I've fulfilled the conditions", Olivia taps "Confirm receipt". The money lands in Alex's balance and can be withdrawn to a card.
+5. Dispute flow: after payment tap "Open dispute" and attach a photo or PDF. Sign in as **admin**,
+   go to "Profile → Admin panel → Disputes" and issue a decision.
+6. A new user verifies their identity after sign-up: full name, passport, photo, card.
+   In dev mode the application is approved automatically. To review applications manually in the admin panel,
+   start the server with `KYC_AUTO_APPROVE=0`.
 
-## Переменные окружения
+## Environment variables
 
-| Переменная | Назначение |
+| Variable | Purpose |
 |---|---|
-| `PORT` | порт (по умолчанию 3000) |
-| `PUBLIC_URL` | внешний адрес для ссылок-приглашений и проверки Origin |
-| `NODE_ENV=production` | включает Secure-cookie с префиксом `__Host-`, HSTS и требует `SAFEDEAL_MASTER_KEY` |
-| `SAFEDEAL_MASTER_KEY` | 32 байта в base64, ключ шифрования персональных данных и файлов (`openssl rand -base64 32`) |
-| `KYC_AUTO_APPROVE=0` | отключить автоодобрение KYC в dev |
-| `TRUST_PROXY` | значение для `app.set('trust proxy')` за балансировщиком |
-| `DATA_DIR` | папка для БД, файлов и ключа (по умолчанию `./data`) |
+| `PORT` | port (default 3000) |
+| `PUBLIC_URL` | public URL used for invite links and the Origin check |
+| `NODE_ENV=production` | enables `__Host-` Secure cookies and HSTS, and requires `SAFEDEAL_MASTER_KEY` |
+| `SAFEDEAL_MASTER_KEY` | 32 bytes in base64 — encryption key for personal data and files (`openssl rand -base64 32`) |
+| `KYC_AUTO_APPROVE=0` | disable automatic KYC approval |
+| `TRUST_PROXY` | value for `app.set('trust proxy')` behind a load balancer |
+| `DATA_DIR` | folder for the database, files and key (default `./data`) |
 
-Сброс данных: удалите папку `data/` и снова выполните `npm run seed`.
+Reset data: delete the `data/` folder and run `npm run seed` again.
+
+## Brand
+
+Colors, typography and graphics follow the Kelishen brand book: Primary Blue `#2183F5`, Light Blue `#6DBBFA`,
+White `#FDFDFD`, Accent Orange `#F15A24` (rare); Nunito for UI text; the connected-shields pattern at 5–12% opacity;
+the snowflake marks funds temporarily frozen in escrow.

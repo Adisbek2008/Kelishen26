@@ -75,7 +75,7 @@ export function dealView(d, user, { full = false } = {}) {
 /** Доступ к сделке — только участникам и администратору (защита от IDOR). 404 вместо 403, чтобы не раскрывать существование. */
 function loadForUser(req) {
   const d = getDeal(req.params.id);
-  if (!d || (!roleOf(d, req.user.id) && req.user.role !== 'admin')) fail(404, 'Сделка не найдена');
+  if (!d || (!roleOf(d, req.user.id) && req.user.role !== 'admin')) fail(404, 'Deal not found');
   return d;
 }
 
@@ -84,17 +84,17 @@ function transition(d, from, to, extra = {}) {
   const sets = ['status = ?', 'updated_at = ?', 'version = version + 1', ...Object.keys(extra).map((k) => `${k} = ?`)];
   const res = db.prepare(`UPDATE deals SET ${sets.join(', ')} WHERE id = ? AND status IN (${from.map(() => '?').join(',')})`)
     .run(to, now(), ...Object.values(extra), d.id, ...from);
-  if (res.changes !== 1) fail(409, 'Статус сделки изменился, обновите страницу', 'conflict');
+  if (res.changes !== 1) fail(409, 'Deal status has changed, please refresh the page', 'conflict');
 }
 
 function requireAction(d, user, action) {
-  if (!allowedActions(d, user).includes(action)) fail(409, 'Действие недоступно в текущем статусе сделки', 'bad_state');
+  if (!allowedActions(d, user).includes(action)) fail(409, 'This action is not available in the current deal status', 'bad_state');
 }
 
 /** Идемпотентность денежных операций: повтор с тем же ключом вернёт сохранённый ответ, а не спишет деньги дважды. */
 function idempotent(req, scope, fn) {
   const key = String(req.get('idempotency-key') || '');
-  if (!/^[A-Za-z0-9_-]{16,80}$/.test(key)) fail(400, 'Нужен заголовок Idempotency-Key');
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(key)) fail(400, 'Idempotency-Key header is required');
   return tx(() => {
     const prev = db.prepare('SELECT response FROM idempotency WHERE user_id = ? AND key = ? AND scope = ?').get(req.user.id, key, scope);
     if (prev) return JSON.parse(prev.response);
@@ -113,11 +113,11 @@ export function releaseFunds(d, actorId, reason) {
     { account: 'escrow:' + d.id, amount: -held },
     { account: 'user:' + d.seller_id, amount: f.sellerGets, userId: d.seller_id },
     { account: 'platform:fees', amount: f.fee },
-  ], { dealId: d.id, description: `Выплата по сделке ${d.code}` });
-  dealEvent(d.id, actorId, 'released', `${reason}. Средства перечислены продавцу`);
-  systemMessage('deal', d.id, `✅ ${reason}. Средства перечислены продавцу.`);
-  notify(d.seller_id, `Средства по сделке ${d.code} перечислены на ваш баланс`, `/deals/${d.id}`);
-  notify(d.buyer_id, `Сделка ${d.code} завершена`, `/deals/${d.id}`);
+  ], { dealId: d.id, description: `Payout for deal ${d.code}` });
+  dealEvent(d.id, actorId, 'released', `${reason}. Funds released to the seller`);
+  systemMessage('deal', d.id, `✅ ${reason}. Funds released to the seller.`);
+  notify(d.seller_id, `Funds for deal ${d.code} have been added to your balance`, `/deals/${d.id}`);
+  notify(d.buyer_id, `Deal ${d.code} completed`, `/deals/${d.id}`);
 }
 
 export function refundBuyer(d, actorId, reason) {
@@ -125,11 +125,11 @@ export function refundBuyer(d, actorId, reason) {
   post('refund', [
     { account: 'escrow:' + d.id, amount: -held },
     { account: 'card:' + d.buyer_id, amount: held, userId: d.buyer_id },
-  ], { dealId: d.id, description: `Возврат по сделке ${d.code}` });
-  dealEvent(d.id, actorId, 'refunded', `${reason}. Средства возвращены покупателю`);
-  systemMessage('deal', d.id, `↩️ ${reason}. Средства возвращены покупателю.`);
-  notify(d.buyer_id, `Средства по сделке ${d.code} возвращены на вашу карту`, `/deals/${d.id}`);
-  notify(d.seller_id, `По сделке ${d.code} оформлен возврат покупателю`, `/deals/${d.id}`);
+  ], { dealId: d.id, description: `Refund for deal ${d.code}` });
+  dealEvent(d.id, actorId, 'refunded', `${reason}. Funds returned to the buyer`);
+  systemMessage('deal', d.id, `↩️ ${reason}. Funds returned to the buyer.`);
+  notify(d.buyer_id, `Funds for deal ${d.code} have been returned to your card`, `/deals/${d.id}`);
+  notify(d.seller_id, `A refund to the buyer was issued for deal ${d.code}`, `/deals/${d.id}`);
 }
 
 const r = Router();
@@ -149,7 +149,7 @@ r.post('/', (req, res) => {
     description: z.string().trim().max(2000).default(''),
     category: z.enum(['goods', 'service', 'rent']),
     conditions: z.string().trim().max(2000).default(''),
-    amountCents: z.number().int().min(500, 'минимум $5').max(config.maxDealCents),
+    amountCents: z.number().int().min(500, 'minimum $5').max(config.maxDealCents),
     myRole: z.enum(['buyer', 'seller']),
     feePayer: z.enum(['buyer', 'seller', 'split']).default('split'),
     deadline: z.iso.date().optional(),
@@ -166,8 +166,8 @@ r.post('/', (req, res) => {
                 buyer_id, seller_id, status, invite_token, deadline, created_at, updated_at)
                 VALUES (:id,:code,:title,:description,:category,:conditions,:amount_cents,:fee_cents,:fee_payer,:creator_id,
                 :buyer_id,:seller_id,:status,:invite_token,:deadline,:created_at,:updated_at)`).run(d);
-    dealEvent(id, req.user.id, 'created', `Сделка создана, вы — ${b.myRole === 'buyer' ? 'покупатель' : 'продавец'}`);
-    systemMessage('deal', id, 'Сделка создана. Отправьте ссылку-приглашение второй стороне.');
+    dealEvent(id, req.user.id, 'created', `Deal created, you are the ${b.myRole === 'buyer' ? 'buyer' : 'seller'}`);
+    systemMessage('deal', id, 'Deal created. Send the invite link to the other party.');
     audit({ actorId: req.user.id, action: 'deal.create', entity: 'deal', entityId: id, meta: { amount: b.amountCents }, ip: clientIp(req) });
   });
   res.status(201).json(dealView(getDeal(id), req.user, { full: true }));
@@ -186,11 +186,11 @@ r.post('/:id/pay', (req, res) => {
     post('hold', [
       { account: 'card:' + req.user.id, amount: -f.buyerPays, userId: req.user.id },
       { account: 'escrow:' + d.id, amount: f.buyerPays },
-    ], { dealId: d.id, description: `Оплата сделки ${d.code} (резерв)` });
+    ], { dealId: d.id, description: `Payment for deal ${d.code} (held)` });
     transition(d, ['awaiting_payment'], 'funds_reserved');
-    dealEvent(d.id, req.user.id, 'paid', `Покупатель оплатил ${(f.buyerPays / 100).toFixed(2)} — средства зарезервированы`);
-    systemMessage('deal', d.id, '🔒 Средства зарезервированы. Продавец может передавать товар или оказывать услугу.');
-    notify(d.seller_id, `Покупатель оплатил сделку ${d.code}. Средства зарезервированы`, `/deals/${d.id}`);
+    dealEvent(d.id, req.user.id, 'paid', `Buyer paid $${(f.buyerPays / 100).toFixed(2)} — funds frozen in escrow`);
+    systemMessage('deal', d.id, '❄️ Funds are frozen in escrow. The seller can now hand over the item or provide the service.');
+    notify(d.seller_id, `The buyer paid for deal ${d.code}. Funds are frozen in escrow`, `/deals/${d.id}`);
     audit({ actorId: req.user.id, action: 'deal.pay', entity: 'deal', entityId: d.id, meta: { amount: f.buyerPays, charge: ch.chargeId }, ip: clientIp(req) });
     return { ok: true };
   });
@@ -203,9 +203,9 @@ r.post('/:id/deliver', (req, res) => {
     const d = loadForUser(req);
     requireAction(d, req.user, 'deliver');
     transition(d, ['funds_reserved'], 'delivered', { delivered_at: now() });
-    dealEvent(d.id, req.user.id, 'delivered', 'Продавец отметил: товар передан / услуга оказана');
-    systemMessage('deal', d.id, `📦 Продавец отметил выполнение.${b.note ? ' Комментарий: ' + b.note : ''} Покупатель, проверьте и подтвердите сделку. Без ответа средства будут перечислены автоматически через ${config.autoReleaseDays} дн.`);
-    notify(d.buyer_id, `Продавец выполнил условия сделки ${d.code}. Подтвердите получение`, `/deals/${d.id}`);
+    dealEvent(d.id, req.user.id, 'delivered', 'Seller marked the item as delivered / service as provided');
+    systemMessage('deal', d.id, `📦 The seller marked the deal as fulfilled.${b.note ? ' Note: ' + b.note : ''} Buyer, please check and confirm. Without a response, funds will be released automatically in ${config.autoReleaseDays} days.`);
+    notify(d.buyer_id, `The seller fulfilled deal ${d.code}. Please confirm receipt`, `/deals/${d.id}`);
     audit({ actorId: req.user.id, action: 'deal.deliver', entity: 'deal', entityId: d.id, ip: clientIp(req) });
   });
   res.json(dealView(getDeal(req.params.id), req.user, { full: true }));
@@ -216,7 +216,7 @@ r.post('/:id/confirm', (req, res) => {
     const d = loadForUser(req);
     requireAction(d, req.user, 'confirm');
     transition(d, ['funds_reserved', 'delivered'], 'completed');
-    releaseFunds(d, req.user.id, 'Покупатель подтвердил выполнение сделки');
+    releaseFunds(d, req.user.id, 'Buyer confirmed the deal');
     audit({ actorId: req.user.id, action: 'deal.confirm', entity: 'deal', entityId: d.id, ip: clientIp(req) });
   });
   res.json(dealView(getDeal(req.params.id), req.user, { full: true }));
@@ -227,7 +227,7 @@ r.post('/:id/refund', (req, res) => {
     const d = loadForUser(req);
     requireAction(d, req.user, 'refund');
     transition(d, ['funds_reserved', 'delivered'], 'refunded');
-    refundBuyer(d, req.user.id, 'Продавец отменил сделку');
+    refundBuyer(d, req.user.id, 'Seller cancelled the deal');
     audit({ actorId: req.user.id, action: 'deal.refund_by_seller', entity: 'deal', entityId: d.id, ip: clientIp(req) });
   });
   res.json(dealView(getDeal(req.params.id), req.user, { full: true }));
@@ -238,33 +238,33 @@ r.post('/:id/cancel', (req, res) => {
     const d = loadForUser(req);
     requireAction(d, req.user, 'cancel');
     transition(d, ['pending_partner', 'awaiting_payment'], 'cancelled', { invite_token: null });
-    dealEvent(d.id, req.user.id, 'cancelled', 'Сделка отменена до оплаты');
-    systemMessage('deal', d.id, 'Сделка отменена.');
+    dealEvent(d.id, req.user.id, 'cancelled', 'Deal cancelled before payment');
+    systemMessage('deal', d.id, 'Deal cancelled.');
     const other = roleOf(d, req.user.id) === 'buyer' ? d.seller_id : d.buyer_id;
-    notify(other, `Сделка ${d.code} отменена`, `/deals/${d.id}`);
+    notify(other, `Deal ${d.code} cancelled`, `/deals/${d.id}`);
     audit({ actorId: req.user.id, action: 'deal.cancel', entity: 'deal', entityId: d.id, ip: clientIp(req) });
   });
   res.json(dealView(getDeal(req.params.id), req.user, { full: true }));
 });
 
 r.post('/:id/dispute', (req, res) => {
-  const b = parse(z.object({ reason: z.string().trim().min(10, 'опишите проблему подробнее').max(2000), fileId: z.uuid().optional() }), req.body);
+  const b = parse(z.object({ reason: z.string().trim().min(10, 'please describe the problem in more detail').max(2000), fileId: z.uuid().optional() }), req.body);
   tx(() => {
     const d = loadForUser(req);
     requireAction(d, req.user, 'dispute');
     if (b.fileId) {
       const f = db.prepare("SELECT * FROM files WHERE id = ? AND owner_id = ? AND purpose = 'deal' AND deal_id = ?").get(b.fileId, req.user.id, d.id);
-      if (!f) fail(400, 'Файл не найден');
+      if (!f) fail(400, 'File not found');
     }
     transition(d, ['funds_reserved', 'delivered'], 'disputed');
-    const who = roleOf(d, req.user.id) === 'buyer' ? 'Покупатель' : 'Продавец';
-    dealEvent(d.id, req.user.id, 'disputed', `${who} открыл спор`);
+    const who = roleOf(d, req.user.id) === 'buyer' ? 'Buyer' : 'Seller';
+    dealEvent(d.id, req.user.id, 'disputed', `${who} opened a dispute`);
     db.prepare(`INSERT INTO messages (thread_type, thread_id, sender_id, sender_role, text, file_id, created_at)
-                VALUES ('deal', ?, ?, 'user', ?, ?, ?)`).run(d.id, req.user.id, `⚠️ Открыт спор: ${b.reason}`, b.fileId ?? null, now());
-    systemMessage('deal', d.id, 'Средства заморожены до решения администрации. Приложите доказательства (фото, документы, переписку) в этот чат.');
+                VALUES ('deal', ?, ?, 'user', ?, ?, ?)`).run(d.id, req.user.id, `⚠️ Dispute opened: ${b.reason}`, b.fileId ?? null, now());
+    systemMessage('deal', d.id, '❄️ Funds are frozen until the Kelishen team makes a decision. Attach evidence (photos, documents, messages) to this chat.');
     const other = roleOf(d, req.user.id) === 'buyer' ? d.seller_id : d.buyer_id;
-    notify(other, `По сделке ${d.code} открыт спор`, `/deals/${d.id}`);
-    for (const a of db.prepare("SELECT id FROM users WHERE role = 'admin'").all()) notify(a.id, `Новый спор: ${d.code}`, `/admin`);
+    notify(other, `A dispute was opened for deal ${d.code}`, `/deals/${d.id}`);
+    for (const a of db.prepare("SELECT id FROM users WHERE role = 'admin'").all()) notify(a.id, `New dispute: ${d.code}`, `/admin`);
     audit({ actorId: req.user.id, action: 'deal.dispute', entity: 'deal', entityId: d.id, ip: clientIp(req) });
   });
   res.json(dealView(getDeal(req.params.id), req.user, { full: true }));
@@ -278,7 +278,7 @@ r.post('/:id/review', (req, res) => {
     const target = roleOf(d, req.user.id) === 'buyer' ? d.seller_id : d.buyer_id;
     db.prepare('INSERT INTO reviews (deal_id, author_id, target_id, rating, comment, created_at) VALUES (?,?,?,?,?,?)')
       .run(d.id, req.user.id, target, b.rating, b.comment, now());
-    notify(target, `Вы получили отзыв ${'★'.repeat(b.rating)} по сделке ${d.code}`, `/users/${target}`);
+    notify(target, `You received a ${'★'.repeat(b.rating)} review for deal ${d.code}`, `/users/${target}`);
   });
   res.json(dealView(getDeal(req.params.id), req.user, { full: true }));
 });
@@ -302,14 +302,14 @@ r.get('/:id/messages', (req, res) => {
 r.post('/:id/messages', (req, res) => {
   const d = loadForUser(req);
   const b = parse(zMessage, req.body);
-  if (!b.text && !b.fileId) fail(400, 'Пустое сообщение');
-  if (['cancelled'].includes(d.status)) fail(409, 'Сделка закрыта');
-  if (b.fileId && !db.prepare("SELECT 1 FROM files WHERE id = ? AND owner_id = ? AND purpose = 'deal' AND deal_id = ?").get(b.fileId, req.user.id, d.id)) fail(400, 'Файл не найден');
+  if (!b.text && !b.fileId) fail(400, 'Empty message');
+  if (['cancelled'].includes(d.status)) fail(409, 'Deal is closed');
+  if (b.fileId && !db.prepare("SELECT 1 FROM files WHERE id = ? AND owner_id = ? AND purpose = 'deal' AND deal_id = ?").get(b.fileId, req.user.id, d.id)) fail(400, 'File not found');
   const role = req.user.role === 'admin' && !roleOf(d, req.user.id) ? 'admin' : 'user';
   db.prepare(`INSERT INTO messages (thread_type, thread_id, sender_id, sender_role, text, file_id, created_at) VALUES ('deal',?,?,?,?,?,?)`)
     .run(d.id, req.user.id, role, b.text, b.fileId ?? null, now());
   const other = roleOf(d, req.user.id) === 'buyer' ? d.seller_id : d.buyer_id;
-  notify(other, `Новое сообщение по сделке ${d.code}`, `/deals/${d.id}`);
+  notify(other, `New message in deal ${d.code}`, `/deals/${d.id}`);
   res.status(201).json({ ok: true });
 });
 
@@ -318,7 +318,7 @@ export const invites = Router();
 
 invites.get('/:token', (req, res) => {
   const d = db.prepare("SELECT * FROM deals WHERE invite_token = ? AND status = 'pending_partner'").get(String(req.params.token));
-  if (!d) fail(404, 'Приглашение недействительно или уже использовано');
+  if (!d) fail(404, 'This invite is invalid or has already been used');
   const creator = getUser(d.creator_id);
   res.json({
     code: d.code, title: d.title, description: d.description, category: d.category, conditions: d.conditions,
@@ -330,14 +330,14 @@ invites.get('/:token', (req, res) => {
 invites.post('/:token/accept', requireAuth, (req, res) => {
   const id = tx(() => {
     const d = db.prepare("SELECT * FROM deals WHERE invite_token = ? AND status = 'pending_partner'").get(String(req.params.token));
-    if (!d) fail(404, 'Приглашение недействительно или уже использовано');
-    if (d.creator_id === req.user.id) fail(400, 'Нельзя принять собственное приглашение');
+    if (!d) fail(404, 'This invite is invalid or has already been used');
+    if (d.creator_id === req.user.id) fail(400, 'You cannot accept your own invite');
     const col = d.buyer_id ? 'seller_id' : 'buyer_id';
     // Ссылка одноразовая: токен удаляется при принятии
     transition(d, ['pending_partner'], 'awaiting_payment', { [col]: req.user.id, invite_token: null });
-    dealEvent(d.id, req.user.id, 'accepted', `${req.user.name} присоединился к сделке`);
-    systemMessage('deal', d.id, `${req.user.name} принял приглашение. Ожидается оплата от покупателя.`);
-    notify(d.creator_id, `${req.user.name} принял приглашение в сделку ${d.code}`, `/deals/${d.id}`);
+    dealEvent(d.id, req.user.id, 'accepted', `${req.user.name} joined the deal`);
+    systemMessage('deal', d.id, `${req.user.name} accepted the invite. Waiting for the buyer's payment.`);
+    notify(d.creator_id, `${req.user.name} accepted the invite to deal ${d.code}`, `/deals/${d.id}`);
     audit({ actorId: req.user.id, action: 'deal.accept_invite', entity: 'deal', entityId: d.id, ip: clientIp(req) });
     return d.id;
   });

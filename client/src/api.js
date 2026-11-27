@@ -1,4 +1,4 @@
-// Обёртка над fetch: cookie-сессия + CSRF-токен + обязательный X-Requested-With + Idempotency-Key для денежных операций
+// fetch wrapper: cookie session + CSRF token + required X-Requested-With + Idempotency-Key for money operations
 let csrf = '';
 export const setCsrf = (t) => { csrf = t || ''; };
 
@@ -18,7 +18,7 @@ export async function api(path, { method = 'GET', body, headers = {}, idempotent
   const res = await fetch('/api' + path, { method, headers: h, body: payload, credentials: 'same-origin' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const e = new Error(data.error || 'Ошибка сети');
+    const e = new Error(data.error || 'Network error');
     e.status = res.status; e.code = data.code;
     if (res.status === 401 && path !== '/auth/login') window.dispatchEvent(new Event('sd:unauth'));
     throw e;
@@ -28,15 +28,15 @@ export async function api(path, { method = 'GET', body, headers = {}, idempotent
 }
 
 export const uploadFile = (file, purpose, dealId) => {
-  if (file.size > 10 * 1024 * 1024) return Promise.reject(new Error('Файл больше 10 МБ'));
+  if (file.size > 10 * 1024 * 1024) return Promise.reject(new Error('File is larger than 10 MB'));
   return api('/files', { method: 'POST', body: file, headers: { 'X-Purpose': purpose, 'X-File-Name': encodeURIComponent(file.name), ...(dealId && { 'X-Deal-Id': dealId }) } });
 };
 
-/** Копирование в буфер: Clipboard API работает только в защищённом контексте (HTTPS/localhost),
- *  поэтому при открытии по http://IP с телефона используем запасной вариант через execCommand. */
+/** Copy to clipboard: the Clipboard API only works in a secure context (HTTPS/localhost),
+ *  so over plain http://IP from a phone we fall back to execCommand. */
 export async function copyText(text) {
   if (window.isSecureContext && navigator.clipboard) {
-    try { await navigator.clipboard.writeText(text); return true; } catch { /* попробуем запасной способ */ }
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* try the fallback */ }
   }
   const ta = document.createElement('textarea');
   ta.value = text;
@@ -52,7 +52,7 @@ export async function copyText(text) {
 }
 
 export const money = (cents) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100);
-export const fmtDate = (iso) => new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
-export const fmtTime = (iso) => new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+export const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+export const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 export const fmtDateTime = (iso) => `${fmtDate(iso)}, ${fmtTime(iso)}`;
-export const fmtSize = (b) => (b > 1024 * 1024 ? (b / 1048576).toFixed(1) + ' МБ' : Math.ceil(b / 1024) + ' КБ');
+export const fmtSize = (b) => (b > 1024 * 1024 ? (b / 1048576).toFixed(1) + ' MB' : Math.ceil(b / 1024) + ' KB');

@@ -35,17 +35,17 @@ r.post('/deals/:id/resolve', (req, res) => {
     buyerPercent: z.number().int().min(1).max(99).optional(),
     comment: z.string().trim().min(5).max(2000),
   }), req.body);
-  if (b.decision === 'split' && !b.buyerPercent) fail(400, 'Укажите долю покупателя');
+  if (b.decision === 'split' && !b.buyerPercent) fail(400, "Specify the buyer's share");
   tx(() => {
     const d = db.prepare('SELECT * FROM deals WHERE id = ?').get(String(req.params.id));
-    if (!d || d.status !== 'disputed') fail(409, 'Сделка не в статусе спора');
+    if (!d || d.status !== 'disputed') fail(409, 'Deal is not in dispute');
     const held = balance('escrow:' + d.id);
     let resolution;
     if (b.decision === 'seller') {
-      releaseFunds(d, req.user.id, 'Спор решён в пользу продавца');
+      releaseFunds(d, req.user.id, 'Dispute resolved in favor of the seller');
       resolution = { decision: 'seller' };
     } else if (b.decision === 'buyer') {
-      refundBuyer(d, req.user.id, 'Спор решён в пользу покупателя');
+      refundBuyer(d, req.user.id, 'Dispute resolved in favor of the buyer');
       resolution = { decision: 'buyer', buyerCents: held, sellerCents: 0 };
     } else {
       const buyerCents = Math.round((held * b.buyerPercent) / 100);
@@ -54,19 +54,19 @@ r.post('/deals/:id/resolve', (req, res) => {
         { account: 'escrow:' + d.id, amount: -held },
         { account: 'card:' + d.buyer_id, amount: buyerCents, userId: d.buyer_id },
         { account: 'user:' + d.seller_id, amount: sellerCents, userId: d.seller_id },
-      ], { dealId: d.id, description: `Распределение по спору ${d.code}` });
-      dealEvent(d.id, req.user.id, 'split', `Средства распределены: покупателю ${b.buyerPercent}%, продавцу ${100 - b.buyerPercent}%`);
-      systemMessage('deal', d.id, `⚖️ Спор решён: покупателю возвращено ${b.buyerPercent}%, продавцу перечислено ${100 - b.buyerPercent}%.`);
-      notify(d.buyer_id, `Спор по сделке ${d.code} решён`, `/deals/${d.id}`);
-      notify(d.seller_id, `Спор по сделке ${d.code} решён`, `/deals/${d.id}`);
+      ], { dealId: d.id, description: `Dispute split for ${d.code}` });
+      dealEvent(d.id, req.user.id, 'split', `Funds split: ${b.buyerPercent}% to the buyer, ${100 - b.buyerPercent}% to the seller`);
+      systemMessage('deal', d.id, `⚖️ Dispute resolved: ${b.buyerPercent}% returned to the buyer, ${100 - b.buyerPercent}% released to the seller.`);
+      notify(d.buyer_id, `Dispute for deal ${d.code} resolved`, `/deals/${d.id}`);
+      notify(d.seller_id, `Dispute for deal ${d.code} resolved`, `/deals/${d.id}`);
       resolution = { decision: 'split', buyerPercent: b.buyerPercent, buyerCents, sellerCents };
     }
     resolution = { ...resolution, comment: b.comment, at: now() };
     const status = b.decision === 'buyer' ? 'refunded' : 'resolved';
     const upd = db.prepare("UPDATE deals SET status = ?, resolution = ?, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'disputed'")
       .run(status, JSON.stringify(resolution), now(), d.id);
-    if (upd.changes !== 1) fail(409, 'Конфликт статуса');
-    systemMessage('deal', d.id, `Комментарий администрации: ${b.comment}`, 'admin');
+    if (upd.changes !== 1) fail(409, 'Status conflict');
+    systemMessage('deal', d.id, `Kelishen team comment: ${b.comment}`, 'admin');
     audit({ actorId: req.user.id, action: 'admin.dispute_resolve', entity: 'deal', entityId: d.id, meta: resolution, ip: clientIp(req) });
   });
   res.json({ ok: true });
@@ -79,7 +79,7 @@ r.get('/kyc', (req, res) => {
 // Просмотр персональных данных — только админ, каждое обращение пишется в аудит
 r.get('/kyc/:id', (req, res) => {
   const u = db.prepare('SELECT * FROM users WHERE id = ?').get(String(req.params.id));
-  if (!u) fail(404, 'Не найдено');
+  if (!u) fail(404, 'Not found');
   audit({ actorId: req.user.id, action: 'pii.kyc_viewed', entity: 'user', entityId: u.id, ip: clientIp(req) });
   res.json({ id: u.id, name: u.name, email: u.email, status: u.kyc_status, fullName: decryptPII(u.kyc_full_name_enc),
     passportNumber: decryptPII(u.kyc_passport_enc), fileId: u.kyc_file_id, card: u.card_last4 ? `${u.card_brand} •••• ${u.card_last4}` : null });
@@ -88,9 +88,9 @@ r.get('/kyc/:id', (req, res) => {
 r.post('/kyc/:id', (req, res) => {
   const b = parse(z.object({ decision: z.enum(['verified', 'rejected']), note: z.string().trim().max(500).optional() }), req.body);
   const u = db.prepare("SELECT * FROM users WHERE id = ? AND kyc_status = 'pending'").get(String(req.params.id));
-  if (!u) fail(404, 'Заявка не найдена');
+  if (!u) fail(404, 'Application not found');
   db.prepare('UPDATE users SET kyc_status = ?, kyc_note = ? WHERE id = ?').run(b.decision, b.note ?? null, u.id);
-  notify(u.id, b.decision === 'verified' ? 'Личность подтверждена' : `Верификация отклонена${b.note ? ': ' + b.note : ''}`, '/profile');
+  notify(u.id, b.decision === 'verified' ? 'Identity verified' : `Verification rejected${b.note ? ': ' + b.note : ''}`, '/profile');
   audit({ actorId: req.user.id, action: 'admin.kyc_' + b.decision, entity: 'user', entityId: u.id, ip: clientIp(req) });
   res.json({ ok: true });
 });
@@ -108,11 +108,11 @@ r.get('/support/:userId', (req, res) => {
 });
 r.post('/support/:userId', (req, res) => {
   const b = parse(zMessage, req.body);
-  if (!b.text) fail(400, 'Пустое сообщение');
+  if (!b.text) fail(400, 'Empty message');
   const uid = String(req.params.userId);
-  if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(uid)) fail(404, 'Не найдено');
+  if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(uid)) fail(404, 'Not found');
   db.prepare(`INSERT INTO messages (thread_type, thread_id, sender_id, sender_role, text, created_at) VALUES ('support',?,?,'admin',?,?)`).run(uid, req.user.id, b.text, now());
-  notify(uid, 'Ответ службы поддержки', '/support');
+  notify(uid, 'Reply from support', '/support');
   res.json({ ok: true });
 });
 

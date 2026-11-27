@@ -36,14 +36,14 @@ r.get('/', (req, res) => {
 
 r.post('/', (req, res) => {
   const b = parse(z.object({
-    fullName: z.string().trim().min(5).max(120).regex(/^[\p{L} .'-]+$/u, 'только буквы'),
-    passportNumber: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{6,12}$/, '6–12 латинских букв/цифр'),
+    fullName: z.string().trim().min(5).max(120).regex(/^[\p{L} .'-]+$/u, 'letters only'),
+    passportNumber: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{6,12}$/, '6–12 Latin letters/digits'),
     fileId: z.uuid(),
     card: zCard,
   }), req.body);
-  if (['pending', 'verified'].includes(req.user.kyc_status)) fail(409, 'Заявка уже подана');
+  if (['pending', 'verified'].includes(req.user.kyc_status)) fail(409, 'Application already submitted');
   const f = db.prepare("SELECT 1 FROM files WHERE id = ? AND owner_id = ? AND purpose = 'kyc'").get(b.fileId, req.user.id);
-  if (!f) fail(400, 'Загрузите фото паспорта');
+  if (!f) fail(400, 'Upload a photo of your passport');
   const card = psp.tokenizeCard(b.card);
   if (!card.ok) fail(400, card.error, 'card_invalid');
   const status = AUTO_APPROVE ? 'verified' : 'pending';
@@ -52,8 +52,8 @@ r.post('/', (req, res) => {
                 card_token = ?, card_last4 = ?, card_brand = ?, card_exp = ? WHERE id = ?`)
       .run(status, encryptPII(b.fullName), encryptPII(b.passportNumber), b.fileId, card.token, card.last4, card.brand, card.exp, req.user.id);
     audit({ actorId: req.user.id, action: 'kyc.submit', entity: 'user', entityId: req.user.id, meta: { auto: AUTO_APPROVE, card: card.last4 }, ip: clientIp(req) });
-    if (AUTO_APPROVE) notify(req.user.id, 'Личность подтверждена. Теперь вам доступны все функции', '/profile');
-    else for (const a of db.prepare("SELECT id FROM users WHERE role='admin'").all()) notify(a.id, `Новая заявка на верификацию: ${req.user.name}`, '/admin');
+    if (AUTO_APPROVE) notify(req.user.id, 'Identity verified. All features are now available', '/profile');
+    else for (const a of db.prepare("SELECT id FROM users WHERE role='admin'").all()) notify(a.id, `New verification request: ${req.user.name}`, '/admin');
   });
   res.json({ user: me(db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)) });
 });

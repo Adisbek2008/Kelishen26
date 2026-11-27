@@ -13,7 +13,7 @@ export function FileCard({ file }) {
   );
 }
 
-/** Универсальный чат: сделка или поддержка. Опрос новых сообщений каждые 4 секунды. */
+/** Shared chat for deals and support. Polls for new messages every 4 seconds. */
 export default function Chat({ path, purpose, dealId, meId, disabled, presets }) {
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
@@ -29,7 +29,7 @@ export default function Chat({ path, purpose, dealId, meId, disabled, presets })
         lastId.current = fresh[fresh.length - 1].id;
         setMsgs((m) => [...m, ...fresh.filter((x) => !m.some((y) => y.id === x.id))]);
       }
-    } catch { /* сеть — попробуем позже */ }
+    } catch { /* network — retry on next tick */ }
   };
   useEffect(() => {
     lastId.current = 0; setMsgs([]); poll();
@@ -56,7 +56,7 @@ export default function Chat({ path, purpose, dealId, meId, disabled, presets })
       {presets}
       <div className="chat-list">
         {msgs.map((m) => {
-          const day = new Date(m.at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+          const day = new Date(m.at).toLocaleDateString('en-US', { day: 'numeric', month: 'long' });
           const showDay = day !== lastDay; lastDay = day;
           const mine = m.senderId === meId;
           const sys = m.senderRole === 'system';
@@ -65,7 +65,7 @@ export default function Chat({ path, purpose, dealId, meId, disabled, presets })
               {showDay && <div className="chat-day">{day}</div>}
               {sys ? <div className="chat-system">{m.text}</div> : (
                 <div className={`bubble-wrap ${mine ? 'mine' : ''}`}>
-                  {!mine && <span className="bubble-author">{m.senderRole === 'support' ? 'Софья · Поддержка' : m.senderRole === 'admin' ? `${m.senderName || 'Администрация'} · SafeDeal` : m.senderName}</span>}
+                  {!mine && <span className="bubble-author">{m.senderRole === 'support' ? 'Sofia · Support' : m.senderRole === 'admin' ? `${m.senderName || 'Kelishen team'} · Kelishen` : m.senderName}</span>}
                   <div className={`bubble ${mine ? 'mine' : ''} ${m.senderRole === 'admin' ? 'admin' : ''}`}>
                     {m.text && <p>{m.text}</p>}
                     {m.file && <FileCard file={m.file} />}
@@ -81,10 +81,10 @@ export default function Chat({ path, purpose, dealId, meId, disabled, presets })
       {!disabled && (
         <form className="composer" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send({ text: text.trim() }); }}>
           <div className="composer-input">
-            <label className="icon-btn" aria-label="Прикрепить файл"><Icon name="clip" size={19} /><input type="file" hidden accept="application/pdf,image/png,image/jpeg,image/webp" onChange={attach} disabled={busy} /></label>
-            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Написать сообщение…" maxLength={4000} />
+            <label className="icon-btn" aria-label="Attach file"><Icon name="clip" size={19} /><input type="file" hidden accept="application/pdf,image/png,image/jpeg,image/webp" onChange={attach} disabled={busy} /></label>
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Write a message…" maxLength={4000} />
           </div>
-          <button className="send-btn" disabled={busy || !text.trim()} aria-label="Отправить"><Icon name="send" size={20} /></button>
+          <button className="send-btn" disabled={busy || !text.trim()} aria-label="Send"><Icon name="send" size={20} /></button>
         </form>
       )}
     </div>

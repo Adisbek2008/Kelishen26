@@ -1,6 +1,6 @@
-# Render Blueprint: бесплатный веб-сервис SafeDeal (https://render.com)
-# Внимание: на бесплатном тарифе диск временный — база сбрасывается к демо-данным
-# при каждом деплое и после «засыпания» сервиса (15 минут без запросов).
+# Render Blueprint: free Kelishen web service (https://render.com)
+# Note: the free plan has an ephemeral disk — the database resets to demo data
+# on every deploy and after the service sleeps (15 minutes without requests).
 services:
   - type: web
     name: safedeal
@@ -15,10 +15,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: SAFEDEAL_MASTER_KEY
-        generateValue: true      # случайный 256-битный ключ шифрования PII и файлов
+        generateValue: true      # random 256-bit key for encrypting PII and files
       - key: ADMIN_PASSWORD
-        sync: false              # Render спросит при создании; пусто = случайный (смотрите в логах)
+        sync: false              # Render asks on creation; empty = random (see the logs)
       - key: KYC_AUTO_APPROVE
-        value: "1"               # демо: верификация одобряется сразу
+        value: "1"               # demo: verification is approved immediately
       - key: TRUST_PROXY
-        value: "1"               # один прокси Render перед приложением — корректные IP для rate limit
+        value: "1"               # one Render proxy in front of the app — correct client IPs for rate limiting

@@ -36,7 +36,7 @@ export function feeSplit(amountCents, feePayer) {
 
 export function nextDealCode() {
   for (;;) {
-    const code = 'SH-' + (1000 + Math.floor(Math.random() * 9000));
+    const code = 'KL-' + (1000 + Math.floor(Math.random() * 9000));
     if (!db.prepare('SELECT 1 FROM deals WHERE code = ?').get(code)) return code;
   }
 }

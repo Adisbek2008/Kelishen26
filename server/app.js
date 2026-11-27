@@ -46,7 +46,7 @@ export function createApp() {
   app.use((req, res, next) => { res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()'); next(); });
 
   const limiter = (windowMin, limit) => rateLimit({ windowMs: windowMin * 60e3, limit, standardHeaders: 'draft-8', legacyHeaders: false,
-    message: { error: 'Слишком много запросов, попробуйте позже', code: 'rate_limited' } });
+    message: { error: 'Too many requests, please try again later', code: 'rate_limited' } });
 
   app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use('/api', limiter(1, 300));
@@ -77,10 +77,10 @@ export function createApp() {
   // Единый обработчик ошибок: клиенту — только безопасное сообщение, без стек-трейсов
   app.use((err, req, res, next) => {
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message, code: err.code });
-    if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Слишком большой запрос' });
-    if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Некорректный JSON' });
+    if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Request too large' });
+    if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Malformed JSON' });
     console.error('[error]', req.method, req.path, err);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    res.status(500).json({ error: 'Internal server error' });
   });
   return app;
 }
@@ -93,7 +93,7 @@ export function runSweep() {
       tx(() => {
         const u = db.prepare("UPDATE deals SET status='completed', updated_at=?, version=version+1 WHERE id=? AND status='delivered'").run(now(), d.id);
         if (u.changes !== 1) return;
-        releaseFunds(d, null, `Покупатель не ответил ${config.autoReleaseDays} дн. — сделка подтверждена автоматически`);
+        releaseFunds(d, null, `Buyer did not respond within ${config.autoReleaseDays} days — deal confirmed automatically`);
         audit({ action: 'deal.auto_release', entity: 'deal', entityId: d.id });
       });
     } catch (e) { console.error('[sweep]', d.code, e.message); }
